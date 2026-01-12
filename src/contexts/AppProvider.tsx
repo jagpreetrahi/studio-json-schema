@@ -5,7 +5,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { AppContext } from "./AppContext";
+import { AppContext, type SchemaFormat } from "./AppContext";
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -19,6 +19,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       : "light";
   });
 
+  const [schemaFormat, setSchemaFormat] = useState<SchemaFormat>("json");
+
   const toggleTheme = () => {
     setTheme((prev) => {
       const next = prev === "light" ? "dark" : "light";
@@ -26,6 +28,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return next;
     });
   };
+
+  const changeSchemaFormat = (format: SchemaFormat) => {
+    setSchemaFormat(format);
+  }
 
   const toggleFullScreen = useCallback(() => {
     const el = containerRef.current;
@@ -65,6 +71,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     theme,
     toggleTheme,
     toggleFullScreen,
+    schemaFormat,
+    changeSchemaFormat
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

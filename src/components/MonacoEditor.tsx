@@ -15,6 +15,7 @@ import defaultSchema from "../data/defaultJSONSchema.json";
 import { AppContext } from "../contexts/AppContext";
 import SchemaVisualization from "./SchemaVisualization";
 import FullscreenToggleButton from "./FullscreenToggleButton";
+import { parseSchema } from "../utils/parseSchema";
 
 type ValidationStatus = {
   status: "success" | "warning" | "error";
@@ -57,7 +58,7 @@ const VALIDATION_UI = {
 };
 
 const MonacoEditor = () => {
-  const { theme, isFullScreen, containerRef } = useContext(AppContext);
+  const { theme, isFullScreen, containerRef, schemaFormat } = useContext(AppContext);
 
   const [compiledSchema, setCompiledSchema] = useState<CompiledSchema | null>(
     null
@@ -65,7 +66,7 @@ const MonacoEditor = () => {
 
   const [schemaText, setSchemaText] = useState<string>(
     window.sessionStorage.getItem(SESSION_STORAGE_KEY)?.trim() ??
-      JSON.stringify(defaultSchema, null, 2)
+    JSON.stringify(defaultSchema, null, 2)
   );
 
   const [schemaValidation, setSchemaValidation] = useState<ValidationStatus>({
@@ -83,7 +84,7 @@ const MonacoEditor = () => {
     const timeout = setTimeout(async () => {
       try {
         // INFO: parsedSchema is mutated by buildSchemaDocument function
-        const parsedSchema = JSON.parse(schemaText);
+        const parsedSchema = parseSchema(schemaText, schemaFormat);
 
         const dialect = parsedSchema.$schema;
         const dialectVersion = dialect ?? DEFAULT_SCHEMA_DIALECT;
@@ -118,13 +119,13 @@ const MonacoEditor = () => {
         setSchemaValidation(
           !dialect && typeof parsedSchema !== "boolean"
             ? {
-                status: "warning",
-                message: VALIDATION_UI["warning"].message,
-              }
+              status: "warning",
+              message: VALIDATION_UI["warning"].message,
+            }
             : {
-                status: "success",
-                message: VALIDATION_UI["success"].message,
-              }
+              status: "success",
+              message: VALIDATION_UI["success"].message,
+            }
         );
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -137,7 +138,7 @@ const MonacoEditor = () => {
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [schemaText]);
+  }, [schemaText, schemaFormat]);
 
   return (
     <div ref={containerRef} className="h-[92vh] flex flex-col">
@@ -153,7 +154,7 @@ const MonacoEditor = () => {
           <Editor
             height="90%"
             width="100%"
-            defaultLanguage="json"
+            defaultLanguage={schemaFormat}
             value={schemaText}
             theme={theme === "light" ? "vs-light" : "vs-dark"}
             options={{ minimap: { enabled: false } }}
