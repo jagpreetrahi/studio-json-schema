@@ -44,15 +44,24 @@ const GraphView = ({
   const [edges, setEdges, onEdgeChange] = useEdgesState<GraphEdge>([]);
   const [collisionResolved, setCollisionResolved] = useState(false);
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
     setExpandedNode({
       nodeId: node.id,
       data: node.data,
     });
-    setSelectedNodeId(node.id);
-  }, []);
+
+    // Select connected edges programmatically to allow native selection handling
+    setEdges((eds) =>
+      eds.map((edge) => {
+        const isConnected = edge.source === node.id || edge.target === node.id;
+        return {
+          ...edge,
+          selected: isConnected
+        };
+      })
+    );
+  }, [setEdges]);
 
   const generateNodesAndEdges = useCallback(
     (
@@ -116,46 +125,42 @@ const GraphView = ({
     []
   );
 
-  // TODO: check if the following approach to bringing the selected edge to the top has any significant performance issues
-  // check if logic can be optimised
+  // Bring selected edges to top
   const orderedEdges = useMemo(() => {
     const normal: typeof edges = [];
     const selected: typeof edges = [];
 
     for (const edge of edges) {
-      const isConnectedToSelectedNode =
-        selectedNodeId && (edge.source === selectedNodeId || edge.target === selectedNodeId);
-
-      if (edge.selected || isConnectedToSelectedNode) selected.push(edge);
+      // Use native selection state
+      if (edge.selected) selected.push(edge);
       else normal.push(edge);
     }
 
     return [...normal, ...selected];
-  }, [edges, selectedNodeId]);
+  }, [edges]);
 
   const animatedEdges = useMemo(
     () =>
       orderedEdges.map((edge) => {
         const isHovered = edge.id === hoveredEdgeId;
         const isSelected = edge.selected;
-        const isConnectedToSelectedNode =
-          selectedNodeId && (edge.source === selectedNodeId || edge.target === selectedNodeId);
 
-        const isActive = isHovered || isSelected || isConnectedToSelectedNode;
+        // Use native selection state + hover
+        const isActive = isHovered || isSelected;
         const strokeColor = isActive ? edge.data.color : "#666";
         const strokeWidth = isActive ? 2.5 : 1;
         return {
           ...edge,
-          animated: !!isActive,
+          // Remove boolean cast and zIndex as requested by maintainer/refactoring
+          animated: isActive,
           style: {
             ...edge.style,
             stroke: strokeColor,
             strokeWidth: strokeWidth,
-            zIndex: isActive ? 1000 : 0,
           },
         };
       }),
-    [orderedEdges, hoveredEdgeId, selectedNodeId]
+    [orderedEdges, hoveredEdgeId]
   );
 
   useEffect(() => {
@@ -218,11 +223,9 @@ const GraphView = ({
         onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
         onEdgeMouseLeave={() => setHoveredEdgeId(null)}
         onPaneClick={() => {
-          if (expandedNode) {
-            setExpandedNode(null);
-          } else {
-            setSelectedNodeId(null);
-          }
+          // React Flow auto-deselects edges on pane click. 
+          // We only need to handle closing popup.
+          setExpandedNode(null);
         }}
       >
         <Background
